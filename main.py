@@ -1,6 +1,6 @@
 import argparse
 import re
-from clang.cindex import Index, CursorKind, TypeKind, Config
+from clang.cindex import Index, CursorKind, TypeKind, Config, TranslationUnit
 
 Config.set_library_file("/usr/lib/llvm-19/lib/libclang-19.so.1")
 
@@ -28,6 +28,22 @@ def extract_macro_definitions(filename, macro_names):
                 if re.match(rf'#define\s+{macro}\b', line):
                     macro_lines.append(line)
                     break
+    return macro_lines
+
+def extract_macro_definitions_from_files(file_list, macro_names):
+    macro_lines = []
+    seen = set()
+    for path in file_list:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip().startswith("#define"):
+                        for macro in macro_names:
+                            if re.match(rf'#define\s+{macro}\b', line) and macro not in seen:
+                                macro_lines.append(line)
+                                seen.add(macro)
+        except FileNotFoundError:
+            continue
     return macro_lines
 
 def read_struct_names_from_file(path):
@@ -67,9 +83,9 @@ def extract_struct_text(filename, struct_cursor):
                     struct_lines[rel_line_num] = re.sub(pattern, replacement, struct_lines[rel_line_num])
     return ''.join(struct_lines)
 
-def extract_and_combine_structs(filename, struct_names, output_filename):
+def extract_and_combine_structs(filename,include_paths, struct_names, output_filename):
     index = Index.create()
-    tu = index.parse(filename, args=["-x", "c"])
+    tu = index.parse(filename, args=["-x", "c"] + [f"-I{path}" for path in include_paths])
 
     found = set()
     combined_texts = []
@@ -83,7 +99,11 @@ def extract_and_combine_structs(filename, struct_names, output_filename):
                 used_macros.update(extract_used_macros(struct_code))
                 found.add(cursor.spelling)
 
-    macro_defs = extract_macro_definitions(filename, used_macros)
+    file_list = [filename]
+    tu.get_includes()
+    for include in tu.get_includes():
+        file_list.append(include.include.name)
+    macro_defs = extract_macro_definitions_from_files(file_list, used_macros)
 
     not_found = set(struct_names) - found
     if not_found:
@@ -105,13 +125,14 @@ def extract_and_combine_structs(filename, struct_names, output_filename):
 
 def main():
     parser = argparse.ArgumentParser(description="C構造体を抽出＆bit長指定型変換")
-    parser.add_argument("-i", "--input", required=True, help="入力ヘッダファイル")
-    parser.add_argument("-f", "--struct-file", required=True, help="構造体名リストファイル（1行ずつ構造体名）")
+    parser.add_argument("-i", "--input", default="examples/basic/example.h", help="入力ヘッダファイル")
+    parser.add_argument("-f", "--struct-file", default="structs.txt", help="構造体名リストファイル（1行ずつ構造体名）")
     parser.add_argument("-o", "--output", default="combined_structs.h", help="出力ファイル名（省略時は combined_structs.h）")
+    parser.add_argument("-I", "--include", action="append", default=["examples/basic"], help="インクルードパス（複数指定可能）")
     args = parser.parse_args()
 
     struct_names = read_struct_names_from_file(args.struct_file)
-    extract_and_combine_structs(args.input, struct_names, args.output)
+    extract_and_combine_structs(args.input,args.include, struct_names, args.output)
 
 if __name__ == "__main__":
     main()
