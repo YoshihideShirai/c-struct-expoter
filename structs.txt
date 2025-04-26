@@ -1,0 +1,4 @@
+# コメント行は無視
+Employee
+Manager
+Person
