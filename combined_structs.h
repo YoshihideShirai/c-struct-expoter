@@ -7,9 +7,9 @@
 #define MAX_NAME 50
 
 // === Person ===
-    struct {
-        long year;
-        long month;
+typedef struct {
+    birth_date_t birth_date;
+} Person;
 
 // === Employee ===
 typedef struct {

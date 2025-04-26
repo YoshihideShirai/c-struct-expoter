@@ -63,6 +63,7 @@ def collect_target_lines(cursor, target_lines):
 
 def extract_struct_text(filename, struct_cursor):
     extent = struct_cursor.extent
+    filename = extent.start.file.name
     start_line = extent.start.line
     end_line = extent.end.line
 
