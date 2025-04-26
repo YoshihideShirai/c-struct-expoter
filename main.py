@@ -11,6 +11,25 @@ TYPE_REPLACEMENTS = {
     TypeKind.ULONG: ('uint64_t', [r'\bunsigned long\b', r'\bunsigned long int\b']),
 }
 
+import re
+
+def extract_used_macros(struct_code):
+    # マクロっぽい単語（定数・名前）を収集（大文字とアンダースコアで構成されるもの）
+    return set(re.findall(r'\b[A-Z_][A-Z0-9_]*\b', struct_code))
+
+def extract_macro_definitions(filename, macro_names):
+    with open(filename, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+
+    macro_lines = []
+    for line in lines:
+        if line.strip().startswith("#define"):
+            for macro in macro_names:
+                if re.match(rf'#define\s+{macro}\b', line):
+                    macro_lines.append(line)
+                    break
+    return macro_lines
+
 def read_struct_names_from_file(path):
     with open(path, "r", encoding="utf-8") as f:
         return [line.strip() for line in f if line.strip() and not line.startswith("#")]
@@ -54,13 +73,17 @@ def extract_and_combine_structs(filename, struct_names, output_filename):
 
     found = set()
     combined_texts = []
+    used_macros = set()
 
     for cursor in tu.cursor.get_children():
         if cursor.kind == CursorKind.STRUCT_DECL and cursor.is_definition():
             if cursor.spelling in struct_names:
                 struct_code = extract_struct_text(filename, cursor)
                 combined_texts.append(f"// === {cursor.spelling} ===\n{struct_code}\n")
+                used_macros.update(extract_used_macros(struct_code))
                 found.add(cursor.spelling)
+
+    macro_defs = extract_macro_definitions(filename, used_macros)
 
     not_found = set(struct_names) - found
     if not_found:
@@ -70,6 +93,10 @@ def extract_and_combine_structs(filename, struct_names, output_filename):
         with open(output_filename, "w", encoding="utf-8") as f:
             f.write("#ifndef COMBINED_STRUCTS_H\n#define COMBINED_STRUCTS_H\n\n")
             f.write("#include <stdint.h>\n\n")
+            if macro_defs:
+                f.write("// === Used Defines ===\n")
+                f.writelines(macro_defs)
+                f.write("\n")
             f.writelines(combined_texts)
             f.write("\n#endif // COMBINED_STRUCTS_H\n")
         print(f"✅ 出力ファイル: {output_filename}")

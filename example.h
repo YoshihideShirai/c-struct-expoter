@@ -2,6 +2,9 @@
 
 typedef unsigned int ulong:
 
+#define MAX_NAME 50
+#define BONUS_RATE 0.1
+
 typedef struct {
     long year;
     long month;
@@ -14,7 +17,7 @@ typedef struct {
 
 typedef struct {
     long id;
-    char name[50];
+    char name[MAX_NAME];
     float salary;
     struct {
         long year;
