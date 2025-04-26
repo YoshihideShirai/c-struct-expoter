@@ -77,7 +77,7 @@ def extract_and_combine_structs(filename, struct_names, output_filename):
         print("⚠️ 対象の構造体は見つかりませんでした。")
 
 def main():
-    parser = argparse.ArgumentParser(description="C構造体を抽出＆long→int64_t変換")
+    parser = argparse.ArgumentParser(description="C構造体を抽出＆bit長指定型変換")
     parser.add_argument("-i", "--input", required=True, help="入力ヘッダファイル")
     parser.add_argument("-f", "--struct-file", required=True, help="構造体名リストファイル（1行ずつ構造体名）")
     parser.add_argument("-o", "--output", default="combined_structs.h", help="出力ファイル名（省略時は combined_structs.h）")
