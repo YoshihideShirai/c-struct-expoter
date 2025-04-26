@@ -1,7 +1,7 @@
 
 from clang.cindex import Index, CursorKind
 
-def extract_struct_definition(filename, target_struct_name, output_filename=None):
+def extract_struct_definition(filename, target_struct_name):
     index = Index.create()
     tu = index.parse(filename, args=["-x", "c"])
 
