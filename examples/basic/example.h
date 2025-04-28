@@ -13,7 +13,7 @@ typedef struct {
     struct {
         long year;
         long month;
-        long day;
+        int day;
         ulong long_time;
     } hire_date;
     Person Person;

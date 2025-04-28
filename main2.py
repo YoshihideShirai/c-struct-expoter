@@ -28,6 +28,21 @@ def collect_all_macros(cursor, macro_map):
         collect_all_macros(child, macro_map)
 
 
+def replace_type(src_type):
+    src_type_map = {
+        "int": "int32_t",
+        "unsigned int": "uint32_t",
+        "ulong": "uint32_t",
+        "long": "int64_t",
+        "unsigned long": "uint64_t",
+        "short": "int16_t",
+        "char": "char",
+        "float": "float",
+        "double": "double",
+    }
+    return src_type_map.get(src_type, src_type)
+
+
 def extract_text_from_cursor(cursor, used_macros, macro_names):
     tu = cursor.translation_unit
     tokens = list(tu.get_tokens(extent=cursor.extent))
@@ -45,12 +60,12 @@ def extract_text_from_cursor(cursor, used_macros, macro_names):
         word = token.spelling
 
         # 型変換対応
-        if word == "long":
-            word = "int64_t"
-        elif word == "unsigned":
-            if (i + 1) < len(tokens) and tokens[i + 1].spelling == "long":
-                word = "uint64_t"
+        if word == "unsigned" or word == "signed":
+            if (i + 1) < len(tokens):
+                word = replace_type(f"{word} {tokens[i + 1].spelling}")
                 skip_next = True
+        else:
+            word = replace_type(word)
 
         # マクロ利用チェック
         if word in macro_names:
