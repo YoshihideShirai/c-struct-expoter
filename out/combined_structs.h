@@ -1,5 +1,5 @@
-#ifndef EXTRACTED_STRUCTS_H
-#define EXTRACTED_STRUCTS_H
+#ifndef __COMBINED_STRUCTS_H
+#define __COMBINED_STRUCTS_H
 
 #include <stdint.h>
 
@@ -15,4 +15,4 @@ typedef struct { int64_t id ; char name [ MAX_NAME ] ; float salary ; struct { i
 // examples/basic/example.h : Manager
 typedef struct { int64_t id ; char name [ 50 ] ; float salary ; Employee employee ; } Manager;
 
-#endif // EXTRACTED_STRUCTS_H
+#endif // __COMBINED_STRUCTS_H

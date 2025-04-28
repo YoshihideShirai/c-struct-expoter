@@ -101,9 +101,10 @@ def main():
 
     # 出力
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
+    INCLUDE_GUARD_NAME = f"__{os.path.basename(args.output).upper().replace('.', '_')}"
     with open(args.output, "w", encoding="utf-8") as f:
-        f.write("#ifndef EXTRACTED_STRUCTS_H\n")
-        f.write("#define EXTRACTED_STRUCTS_H\n\n")
+        f.write(f"#ifndef {INCLUDE_GUARD_NAME}\n")
+        f.write(f"#define {INCLUDE_GUARD_NAME}\n\n")
         f.write("#include <stdint.h>\n\n")
 
         f.write("// Used defines\n")
@@ -116,7 +117,7 @@ def main():
             f.write(struct_val["text"])
             f.write("\n\n")
 
-        f.write("#endif // EXTRACTED_STRUCTS_H\n")
+        f.write(f"#endif // {INCLUDE_GUARD_NAME}\n")
 
 if __name__ == "__main__":
     main()
