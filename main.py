@@ -70,7 +70,8 @@ def extract_struct_text(filename, struct_cursor):
     with open(filename, "r", encoding="utf-8") as f:
         lines = f.readlines()
 
-    struct_lines = lines[start_line - 1:end_line]
+    # struct_lines = lines[start_line - 1:end_line]
+    struct_lines = [extract_text_from_cursor(struct_cursor)]
     target_line_info = []
     collect_target_lines(struct_cursor, target_line_info)
 
@@ -95,7 +96,7 @@ def extract_and_combine_structs(filename,include_paths, struct_names, output_fil
     for cursor in tu.cursor.get_children():
         if cursor.kind == CursorKind.STRUCT_DECL and cursor.is_definition():
             if cursor.spelling in struct_names:
-                struct_code = extract_text_from_cursor(cursor)
+                struct_code = extract_struct_text(filename, cursor)
                 combined_texts.append(
                     f"// === {cursor.spelling} ===\ntypedef {struct_code} {cursor.spelling};\n"
                 )
