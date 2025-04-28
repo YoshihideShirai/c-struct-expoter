@@ -2,6 +2,8 @@
 
 typedef unsigned int ulong:
 
+#define BONUS_RATE 0.1
+
 #include "example2.h"
 
 typedef struct {

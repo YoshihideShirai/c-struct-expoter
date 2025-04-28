@@ -1,6 +1,5 @@
 
 #define MAX_NAME 50
-#define BONUS_RATE 0.1
 
 typedef struct {
     long year;

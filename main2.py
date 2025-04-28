@@ -10,34 +10,6 @@ def load_target_structs(filename):
     with open(filename, "r", encoding="utf-8") as f:
         return set(line.strip() for line in f if line.strip())
 
-def extract_text_from_cursor(cursor):
-    tu = cursor.translation_unit
-    tokens = list(tu.get_tokens(extent=cursor.extent))
-
-    output = []
-    for token in tokens:
-        if token.kind == TokenKind.COMMENT:
-            continue
-        word = token.spelling
-        if word == "long":
-            word = "int64_t"
-        elif word == "unsigned":
-            # unsigned long など対応
-            next_idx = tokens.index(token) + 1
-            if next_idx < len(tokens) and tokens[next_idx].spelling == "long":
-                word = "uint64_t"
-                tokens[next_idx] = token  # nextの"long"を無視する
-        output.append(word)
-
-    return ' '.join(output)
-
-def find_defines(cursor, defines):
-    if cursor.kind == CursorKind.MACRO_DEFINITION:
-        define_text = reconstruct_macro(cursor)
-        defines.append(define_text)
-    for child in cursor.get_children():
-        find_defines(child, defines)
-
 def reconstruct_macro(cursor):
     tu = cursor.translation_unit
     tokens = list(tu.get_tokens(extent=cursor.extent))
@@ -46,9 +18,47 @@ def reconstruct_macro(cursor):
         parts.append(token.spelling)
     return ' '.join(parts)
 
+def collect_all_macros(cursor, macro_map):
+    if cursor.kind == CursorKind.MACRO_DEFINITION:
+        macro_map[cursor.spelling] = reconstruct_macro(cursor)
+    for child in cursor.get_children():
+        collect_all_macros(child, macro_map)
+
+def extract_text_from_cursor(cursor, used_macros, macro_names):
+    tu = cursor.translation_unit
+    tokens = list(tu.get_tokens(extent=cursor.extent))
+
+    output = []
+    skip_next = False
+    for i, token in enumerate(tokens):
+        if skip_next:
+            skip_next = False
+            continue
+
+        if token.kind == TokenKind.COMMENT:
+            continue
+
+        word = token.spelling
+
+        # 型変換対応
+        if word == "long":
+            word = "int64_t"
+        elif word == "unsigned":
+            if (i + 1) < len(tokens) and tokens[i + 1].spelling == "long":
+                word = "uint64_t"
+                skip_next = True
+
+        # マクロ利用チェック
+        if word in macro_names:
+            used_macros.add(word)
+
+        output.append(word)
+
+    return ' '.join(output)
+
 def find_target_structs(cursor, targets, collected):
     if cursor.kind in (CursorKind.STRUCT_DECL, CursorKind.UNION_DECL, CursorKind.ENUM_DECL):
-        if cursor.spelling in targets:
+        if cursor.spelling in targets and cursor.is_definition():
             collected.append(cursor)
     for child in cursor.get_children():
         find_target_structs(child, targets, collected)
@@ -63,20 +73,31 @@ def main():
 
     args = parser.parse_args()
 
-    # パース準備
     index = Index.create()
-    parse_args = ["-x", "c", "-std=c11"] + [f"-I{inc}" for inc in args.include] + [f"-D{d}" for d in args.define]
+    parse_args = ["-x", "c", "-std=c11", "-Xclang", "-detailed-preprocessing-record"] \
+                 + [f"-I{inc}" for inc in args.include] \
+                 + [f"-D{d}" for d in args.define]
     tu = index.parse(args.input, args=parse_args)
 
-    # ターゲットのstruct名をロード
     target_structs = load_target_structs(args.structs)
 
-    # 抽出
+    macro_map = {}
+    collect_all_macros(tu.cursor, macro_map)
+
     structs = []
     find_target_structs(tu.cursor, target_structs, structs)
 
-    defines = set()
-    find_defines(tu.cursor, defines)
+    used_macros = set()
+    output_structs = {}
+
+    for cursor in structs:
+        struct_text = extract_text_from_cursor(cursor, used_macros, set(macro_map.keys()))
+        filename = cursor.location.file.name
+        struct_name = cursor.spelling
+        output_structs[struct_name] = {
+            "filename": filename,
+            "text": f"typedef {struct_text} {struct_name};"
+        }
 
     # 出力
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
@@ -86,15 +107,13 @@ def main():
         f.write("#include <stdint.h>\n\n")
 
         f.write("// Used defines\n")
-        for define in sorted(defines):
-            f.write(f"#define {define}\n")
+        for name in sorted(used_macros):
+            f.write(f"#define {macro_map[name]}\n")
         f.write("\n")
 
-        for cursor in structs:
-            filename = cursor.location.file.name
-            struct_text = extract_text_from_cursor(cursor)
-            f.write(f"// From: {filename}\n")
-            f.write(struct_text)
+        for struct_name , struct_val in output_structs.items():
+            f.write(f"// {struct_val["filename"]} : {struct_name}\n")
+            f.write(struct_val["text"])
             f.write("\n\n")
 
         f.write("#endif // EXTRACTED_STRUCTS_H\n")
