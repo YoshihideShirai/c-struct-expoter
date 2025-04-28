@@ -7,31 +7,10 @@
 #define MAX_NAME 50
 
 // === Person ===
-typedef struct {
-    birth_date_t birth_date;
-} Person;
-
+typedef struct { birth_date_t birth_date ; } Person;
 // === Employee ===
-typedef struct {
-    int64_t id;
-    char name[MAX_NAME];
-    float salary;
-    struct {
-        int64_t year;
-        int64_t month;
-        int64_t day;
-        uint32_t long_time;
-    } hire_date;
-    Person Person;
-} Employee;
-
+typedef struct { long id ; char name [ MAX_NAME ] ; float salary ; struct { long year ; long month ; long day ; ulong long_time ; } hire_date ; Person Person ; } Employee;
 // === Manager ===
-typedef struct {
-    int64_t id;
-    char name[50];
-    float salary;
-    Employee employee;
-} Manager
-
+typedef struct { long id ; char name [ 50 ] ; float salary ; Employee employee ; } Manager;
 
 #endif // COMBINED_STRUCTS_H

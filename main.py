@@ -1,6 +1,6 @@
 import argparse
 import re
-from clang.cindex import Index, CursorKind, TypeKind, Config, TranslationUnit
+from clang.cindex import Index, CursorKind, TypeKind, Config, TokenKind
 
 Config.set_library_file("/usr/lib/llvm-19/lib/libclang-19.so.1")
 
@@ -95,8 +95,10 @@ def extract_and_combine_structs(filename,include_paths, struct_names, output_fil
     for cursor in tu.cursor.get_children():
         if cursor.kind == CursorKind.STRUCT_DECL and cursor.is_definition():
             if cursor.spelling in struct_names:
-                struct_code = extract_struct_text(filename, cursor)
-                combined_texts.append(f"// === {cursor.spelling} ===\n{struct_code}\n")
+                struct_code = extract_text_from_cursor(cursor)
+                combined_texts.append(
+                    f"// === {cursor.spelling} ===\ntypedef {struct_code} {cursor.spelling};\n"
+                )
                 used_macros.update(extract_used_macros(struct_code))
                 found.add(cursor.spelling)
 
@@ -123,6 +125,23 @@ def extract_and_combine_structs(filename,include_paths, struct_names, output_fil
         print(f"✅ 出力ファイル: {output_filename}")
     else:
         print("⚠️ 対象の構造体は見つかりませんでした。")
+
+def extract_text_from_cursor(cursor):
+    tu = cursor.translation_unit
+    extent = cursor.extent
+
+    tokens = list(tu.get_tokens(extent=extent))
+
+    output = []
+    for token in tokens:
+        if token.kind in [TokenKind.KEYWORD, TokenKind.IDENTIFIER, TokenKind.LITERAL, TokenKind.PUNCTUATION]:
+            output.append(token.spelling)
+        elif token.kind == TokenKind.COMMENT:
+            pass  # コメントはスキップする
+
+    # トークンをうまく並べ直して Cコードっぽくする
+    # ここはシンプルにスペース区切りでまず繋げる
+    return ' '.join(output)
 
 def main():
     parser = argparse.ArgumentParser(description="C構造体を抽出＆bit長指定型変換")
