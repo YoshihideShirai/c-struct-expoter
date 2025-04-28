@@ -11,11 +11,11 @@ TYPE_REPLACEMENTS = {
     TypeKind.ULONG: ('uint64_t', [r'\bunsigned long\b', r'\bunsigned long int\b']),
 }
 
-import re
 
 def extract_used_macros(struct_code):
     # マクロっぽい単語（定数・名前）を収集（大文字とアンダースコアで構成されるもの）
     return set(re.findall(r'\b[A-Z_][A-Z0-9_]*\b', struct_code))
+
 
 def extract_macro_definitions(filename, macro_names):
     with open(filename, "r", encoding="utf-8") as f:
@@ -29,6 +29,7 @@ def extract_macro_definitions(filename, macro_names):
                     macro_lines.append(line)
                     break
     return macro_lines
+
 
 def extract_macro_definitions_from_files(file_list, macro_names):
     macro_lines = []
@@ -46,9 +47,11 @@ def extract_macro_definitions_from_files(file_list, macro_names):
             continue
     return macro_lines
 
+
 def read_struct_names_from_file(path):
     with open(path, "r", encoding="utf-8") as f:
         return [line.strip() for line in f if line.strip() and not line.startswith("#")]
+
 
 def collect_target_lines(cursor, target_lines):
     for child in cursor.get_children():
@@ -60,6 +63,7 @@ def collect_target_lines(cursor, target_lines):
         elif child.kind in [CursorKind.UNION_DECL, CursorKind.STRUCT_DECL, CursorKind.ENUM_DECL]:
             if child.is_definition():
                 collect_target_lines(child, target_lines)
+
 
 def extract_struct_text(filename, struct_cursor):
     extent = struct_cursor.extent
@@ -77,17 +81,21 @@ def extract_struct_text(filename, struct_cursor):
 
     for rel_line_num in range(len(struct_lines)):
         abs_line_num = start_line + rel_line_num
-        matches = [kind for line, kind in target_line_info if line == abs_line_num]
+        matches = [kind for line,
+                   kind in target_line_info if line == abs_line_num]
         if matches:
             for kind in matches:
                 replacement, patterns = TYPE_REPLACEMENTS[kind]
                 for pattern in patterns:
-                    struct_lines[rel_line_num] = re.sub(pattern, replacement, struct_lines[rel_line_num])
+                    struct_lines[rel_line_num] = re.sub(
+                        pattern, replacement, struct_lines[rel_line_num])
     return ''.join(struct_lines)
 
-def extract_and_combine_structs(filename,include_paths, struct_names, output_filename):
+
+def extract_and_combine_structs(filename, include_paths, struct_names, output_filename):
     index = Index.create()
-    tu = index.parse(filename, args=["-x", "c"] + [f"-I{path}" for path in include_paths])
+    tu = index.parse(filename, args=["-x", "c"] +
+                     [f"-I{path}" for path in include_paths])
 
     found = set()
     combined_texts = []
@@ -127,6 +135,7 @@ def extract_and_combine_structs(filename,include_paths, struct_names, output_fil
     else:
         print("⚠️ 対象の構造体は見つかりませんでした。")
 
+
 def extract_text_from_cursor(cursor):
     tu = cursor.translation_unit
     extent = cursor.extent
@@ -144,16 +153,23 @@ def extract_text_from_cursor(cursor):
     # ここはシンプルにスペース区切りでまず繋げる
     return ' '.join(output)
 
+
 def main():
     parser = argparse.ArgumentParser(description="C構造体を抽出＆bit長指定型変換")
-    parser.add_argument("-i", "--input", default="examples/basic/example.h", help="入力ヘッダファイル")
-    parser.add_argument("-f", "--struct-file", default="structs.txt", help="構造体名リストファイル（1行ずつ構造体名）")
-    parser.add_argument("-o", "--output", default="combined_structs.h", help="出力ファイル名（省略時は combined_structs.h）")
-    parser.add_argument("-I", "--include", action="append", default=["examples/basic"], help="インクルードパス（複数指定可能）")
+    parser.add_argument(
+        "-i", "--input", default="examples/basic/example.h", help="入力ヘッダファイル")
+    parser.add_argument("-f", "--struct-file",
+                        default="structs.txt", help="構造体名リストファイル（1行ずつ構造体名）")
+    parser.add_argument("-o", "--output", default="combined_structs.h",
+                        help="出力ファイル名（省略時は combined_structs.h）")
+    parser.add_argument("-I", "--include", action="append",
+                        default=["examples/basic"], help="インクルードパス（複数指定可能）")
     args = parser.parse_args()
 
     struct_names = read_struct_names_from_file(args.struct_file)
-    extract_and_combine_structs(args.input,args.include, struct_names, args.output)
+    extract_and_combine_structs(
+        args.input, args.include, struct_names, args.output)
+
 
 if __name__ == "__main__":
     main()

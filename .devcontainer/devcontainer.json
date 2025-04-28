@@ -6,7 +6,7 @@
     "build": {
         // Path is relative to the devcontainer.json file.
         "dockerfile": "Dockerfile"
-    }
+    },
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
@@ -16,6 +16,7 @@
 
 	// Use 'postCreateCommand' to run commands after the container is created.
 	// "postCreateCommand": "pip3 install --user -r requirements.txt",
+	"postCreateCommand": "pip3 install --user -r requirements.txt -r requirements-dev.txt"
 
 	// Configure tool-specific properties.
 	// "customizations": {},

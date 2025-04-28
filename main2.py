@@ -6,9 +6,11 @@ from clang.cindex import Index, CursorKind, TokenKind, Config
 # Config.set_library_path('/path/to/clang/library')
 Config.set_library_file("/usr/lib/llvm-19/lib/libclang-19.so.1")
 
+
 def load_target_structs(filename):
     with open(filename, "r", encoding="utf-8") as f:
         return set(line.strip() for line in f if line.strip())
+
 
 def reconstruct_macro(cursor):
     tu = cursor.translation_unit
@@ -18,11 +20,13 @@ def reconstruct_macro(cursor):
         parts.append(token.spelling)
     return ' '.join(parts)
 
+
 def collect_all_macros(cursor, macro_map):
     if cursor.kind == CursorKind.MACRO_DEFINITION:
         macro_map[cursor.spelling] = reconstruct_macro(cursor)
     for child in cursor.get_children():
         collect_all_macros(child, macro_map)
+
 
 def extract_text_from_cursor(cursor, used_macros, macro_names):
     tu = cursor.translation_unit
@@ -56,6 +60,7 @@ def extract_text_from_cursor(cursor, used_macros, macro_names):
 
     return ' '.join(output)
 
+
 def find_target_structs(cursor, targets, collected):
     if cursor.kind in (CursorKind.STRUCT_DECL, CursorKind.UNION_DECL, CursorKind.ENUM_DECL):
         if cursor.spelling in targets and cursor.is_definition():
@@ -63,20 +68,26 @@ def find_target_structs(cursor, targets, collected):
     for child in cursor.get_children():
         find_target_structs(child, targets, collected)
 
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--input", required=True, help="Input header file")
-    parser.add_argument("-f", "--structs", required=True, help="Text file listing struct names")
-    parser.add_argument("-o", "--output", required=True, help="Output file name")
-    parser.add_argument("-I", "--include", action="append", default=[], help="Include dirs")
-    parser.add_argument("-D", "--define", action="append", default=[], help="Macro defines")
+    parser.add_argument("-i", "--input", required=True,
+                        help="Input header file")
+    parser.add_argument("-f", "--structs", required=True,
+                        help="Text file listing struct names")
+    parser.add_argument("-o", "--output", required=True,
+                        help="Output file name")
+    parser.add_argument("-I", "--include", action="append",
+                        default=[], help="Include dirs")
+    parser.add_argument("-D", "--define", action="append",
+                        default=[], help="Macro defines")
 
     args = parser.parse_args()
 
     index = Index.create()
     parse_args = ["-x", "c", "-std=c11", "-Xclang", "-detailed-preprocessing-record"] \
-                 + [f"-I{inc}" for inc in args.include] \
-                 + [f"-D{d}" for d in args.define]
+        + [f"-I{inc}" for inc in args.include] \
+        + [f"-D{d}" for d in args.define]
     tu = index.parse(args.input, args=parse_args)
 
     target_structs = load_target_structs(args.structs)
@@ -91,7 +102,8 @@ def main():
     output_structs = {}
 
     for cursor in structs:
-        struct_text = extract_text_from_cursor(cursor, used_macros, set(macro_map.keys()))
+        struct_text = extract_text_from_cursor(
+            cursor, used_macros, set(macro_map.keys()))
         filename = cursor.location.file.name
         struct_name = cursor.spelling
         output_structs[struct_name] = {
@@ -112,12 +124,13 @@ def main():
             f.write(f"#define {macro_map[name]}\n")
         f.write("\n")
 
-        for struct_name , struct_val in output_structs.items():
+        for struct_name, struct_val in output_structs.items():
             f.write(f"// {struct_val["filename"]} : {struct_name}\n")
             f.write(struct_val["text"])
             f.write("\n\n")
 
         f.write(f"#endif // {INCLUDE_GUARD_NAME}\n")
+
 
 if __name__ == "__main__":
     main()
