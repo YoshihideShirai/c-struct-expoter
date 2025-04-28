@@ -1,6 +1,6 @@
 #!/bin/bash
 
-python main2.py \
+python main.py \
     -I examples/basic \
     -i examples/basic/example.h \
     -f structs.txt \
